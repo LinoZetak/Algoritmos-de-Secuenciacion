@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sequence Alignment Algorithms</title>
+<title>Sequence Alignment & BWT/FM-Index</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -110,6 +110,17 @@
     background: var(--paper);
     border-color: var(--blue);
     color: var(--blue);
+  }
+
+  .tab-btn.bwt {
+    color: var(--green);
+    border-color: var(--grid-line);
+    background: var(--header-bg);
+  }
+  .tab-btn.bwt.active {
+    background: var(--paper);
+    border-color: var(--green);
+    color: var(--green);
   }
 
   .content {
@@ -378,6 +389,213 @@
     .tabs { padding: 16px 10px 0; }
     .controls { flex-direction: column; }
   }
+  /* ── BWT/FM-Index styles ── */
+  .input-group.bwt-group input:focus { border-color: var(--green); }
+  .calc-btn.bwt-btn {
+    background: var(--green);
+    color: white;
+    box-shadow: 0 4px 15px rgba(39,174,96,0.35);
+  }
+  .calc-btn.bwt-btn:hover { background: #1e8449; transform: translateY(-2px); }
+
+  .score-badge.bwt-score {
+    background: rgba(39,174,96,0.1);
+    color: var(--green);
+    border: 2px solid var(--green);
+  }
+
+  .bwt-section {
+    margin-bottom: 32px;
+  }
+  .bwt-section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    color: var(--green);
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid rgba(39,174,96,0.3);
+    letter-spacing: 0.5px;
+  }
+  .bwt-section-title span {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.75rem;
+    opacity: 0.6;
+    font-weight: 400;
+    margin-left: 10px;
+  }
+
+  /* Rotation matrix */
+  table.rot-table {
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+  table.rot-table td, table.rot-table th {
+    border: 1px solid var(--grid-line);
+    padding: 6px 10px;
+    text-align: center;
+    min-width: 32px;
+    font-family: 'Source Code Pro', monospace;
+  }
+  table.rot-table th {
+    background: var(--header-bg);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    color: var(--green);
+    text-transform: uppercase;
+  }
+  table.rot-table td.bwt-last {
+    background: rgba(39,174,96,0.2);
+    color: var(--green);
+    font-weight: 700;
+    border-left: 2px solid var(--green);
+  }
+  table.rot-table td.bwt-first {
+    background: rgba(39,174,96,0.07);
+    font-weight: 700;
+  }
+  table.rot-table tr.original-row td {
+    background: rgba(243,156,18,0.12);
+    border-top: 2px solid #f39c12;
+    border-bottom: 2px solid #f39c12;
+  }
+  table.rot-table tr.original-row td.bwt-last {
+    background: rgba(243,156,18,0.25);
+  }
+  .row-index {
+    font-size: 0.65rem;
+    color: #999;
+    padding: 0 8px !important;
+    background: var(--bg) !important;
+    border: none !important;
+  }
+  .sa-badge {
+    display: inline-block;
+    background: rgba(39,174,96,0.15);
+    color: var(--green);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-left: 6px;
+  }
+
+  /* C and Occ tables */
+  .bwt-tables-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  table.fm-table {
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  table.fm-table td, table.fm-table th {
+    border: 1px solid var(--grid-line);
+    padding: 7px 13px;
+    text-align: center;
+    font-family: 'Source Code Pro', monospace;
+    min-width: 40px;
+  }
+  table.fm-table th {
+    background: var(--header-bg);
+    color: var(--green);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  table.fm-table td.occ-active {
+    background: rgba(39,174,96,0.2);
+    font-weight: 700;
+    color: var(--green);
+  }
+  table.fm-table td.search-range {
+    background: rgba(243,156,18,0.2);
+    font-weight: 700;
+    outline: 2px solid #f39c12;
+    outline-offset: -2px;
+  }
+
+  /* Backward search steps */
+  .search-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .search-step {
+    padding: 14px 18px;
+    border-radius: 8px;
+    border-left: 4px solid var(--green);
+    background: rgba(39,174,96,0.05);
+    font-size: 0.82rem;
+    line-height: 1.7;
+  }
+  .search-step .step-char {
+    display: inline-block;
+    background: var(--green);
+    color: white;
+    border-radius: 4px;
+    padding: 1px 8px;
+    font-weight: 700;
+    margin-right: 6px;
+    font-size: 1rem;
+  }
+  .search-step .step-formula {
+    color: var(--green);
+    font-weight: 700;
+  }
+  .search-step .step-range {
+    display: inline-block;
+    background: rgba(243,156,18,0.2);
+    border: 1px solid #f39c12;
+    border-radius: 4px;
+    padding: 2px 8px;
+    color: #b7770d;
+    font-weight: 700;
+  }
+  .search-step.step-fail {
+    border-left-color: var(--red);
+    background: rgba(192,57,43,0.05);
+  }
+  .search-step.step-fail .step-char { background: var(--red); }
+
+  /* Result positions */
+  .found-positions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .pos-chip {
+    background: rgba(39,174,96,0.15);
+    color: var(--green);
+    border: 2px solid var(--green);
+    border-radius: 50px;
+    padding: 5px 16px;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+
+  /* Highlighted text result */
+  .text-highlight-box {
+    background: var(--ink);
+    color: #fdfaf3;
+    padding: 18px 24px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    letter-spacing: 5px;
+    font-weight: 600;
+    margin-top: 12px;
+  }
+  .text-highlight-box .hl { 
+    color: #2ecc71;
+    text-decoration: underline;
+    text-decoration-color: #2ecc71;
+    text-underline-offset: 4px;
+  }
+  .text-highlight-box .sentinel { color: #f39c12; }
 </style>
 </head>
 <body>
@@ -385,7 +603,7 @@
 <header>
   <div>
     <h1>Sequence Alignment</h1>
-    <div class="subtitle">Needleman-Wunsch · Smith-Waterman · Dynamic Programming</div>
+    <div class="subtitle">Needleman-Wunsch · Smith-Waterman · BWT / FM-Index</div>
   </div>
   <div class="dna-decoration">A T G C A T G C</div>
 </header>
@@ -393,6 +611,7 @@
 <div class="tabs">
   <button class="tab-btn nw active" onclick="switchTab('nw')">Needleman-Wunsch (Global)</button>
   <button class="tab-btn sw" onclick="switchTab('sw')">Smith-Waterman (Local)</button>
+  <button class="tab-btn bwt" onclick="switchTab('bwt')">BWT / FM-Index</button>
 </div>
 
 <div class="content">
@@ -455,6 +674,21 @@
     </div>
     <div class="result-section" id="sw-result"></div>
   </div>
+  <!-- BWT / FM-INDEX -->
+  <div class="tab-content" id="tab-bwt">
+    <div class="controls">
+      <div class="input-group bwt-group">
+        <label>Texto / Genoma</label>
+        <input type="text" id="bwt-text" value="BANANA" placeholder="ej. BANANA">
+      </div>
+      <div class="input-group bwt-group">
+        <label>Patrón a buscar</label>
+        <input type="text" id="bwt-pattern" value="ANA" placeholder="ej. ANA">
+      </div>
+      <button class="calc-btn bwt-btn" onclick="runBWT()">▶ Calcular</button>
+    </div>
+    <div class="result-section" id="bwt-result"></div>
+  </div>
 </div>
 
 <script>
@@ -464,9 +698,263 @@ function switchTab(tab) {
   document.querySelector('.tab-btn.' + tab).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
 }
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('.tab-btn.' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
 
 // ───────────────────────────────────────────────
-// NEEDLEMAN-WUNSCH
+// BWT / FM-INDEX
+// ───────────────────────────────────────────────
+function runBWT() {
+  const rawText = document.getElementById('bwt-text').value.toUpperCase().trim();
+  const pattern = document.getElementById('bwt-pattern').value.toUpperCase().trim();
+  if (!rawText) return;
+
+  const T = rawText + '$';
+  const n = T.length;
+
+  // 1. Build all rotations
+  const rotations = [];
+  for (let i = 0; i < n; i++) rotations.push({ rot: T.slice(i) + T.slice(0, i), origIdx: i });
+
+  // 2. Sort
+  const sorted = [...rotations].sort((a, b) => a.rot < b.rot ? -1 : 1);
+
+  // 3. BWT, SA, F
+  const bwt = sorted.map(r => r.rot[n - 1]).join('');
+  const SA  = sorted.map(r => r.origIdx);
+  const origRowInSorted = sorted.findIndex(r => r.origIdx === 0);
+
+  // 4. C table
+  const chars = [...new Set(T.split('').sort())];
+  const C = {};
+  let cnt = 0;
+  for (const c of chars) { C[c] = cnt; cnt += T.split('').filter(x => x === c).length; }
+
+  // 5. Occ table
+  const occ = {};
+  for (const c of chars) {
+    occ[c] = new Array(n).fill(0);
+    let cc = 0;
+    for (let i = 0; i < n; i++) { if (bwt[i] === c) cc++; occ[c][i] = cc; }
+  }
+  const getOcc = (c, i) => i < 0 ? 0 : (occ[c] ? occ[c][i] : 0);
+
+  // 6. Backward search
+  const steps = [];
+  let found = false;
+  let top = 0, bot = n - 1;
+  if (pattern) {
+    for (let k = pattern.length - 1; k >= 0; k--) {
+      const c = pattern[k];
+      const pTop = top, pBot = bot;
+      if (!C.hasOwnProperty(c)) {
+        steps.push({ char: c, prevTop: pTop, prevBot: pBot, newTop: -1, newBot: -2, fail: true });
+        top = -1; bot = -2; break;
+      }
+      const nTop = C[c] + getOcc(c, top - 1);
+      const nBot = C[c] + getOcc(c, bot) - 1;
+      steps.push({ char: c, prevTop: pTop, prevBot: pBot, newTop: nTop, newBot: nBot,
+        formulaTop: `C[${c}] + Occ(${c}, ${top-1}) = ${C[c]} + ${getOcc(c, top-1)} = ${nTop}`,
+        formulaBot: `C[${c}] + Occ(${c}, ${bot}) - 1 = ${C[c]} + ${getOcc(c,bot)} - 1 = ${nBot}`,
+        fail: nTop > nBot });
+      top = nTop; bot = nBot;
+      if (top > bot) break;
+      found = true;
+    }
+    if (top <= bot) found = true;
+  }
+
+  const positions = [];
+  if (found && top <= bot) { for (let i = top; i <= bot; i++) positions.push(SA[i]); positions.sort((a,b)=>a-b); }
+
+  // ─── RENDER ───
+  let html = '';
+
+  // Step 1: text with sentinel
+  html += `<div class="bwt-section">
+    <div class="bwt-section-title">Paso 1 — Texto con centinela <span>$ es el símbolo menor en el ordenamiento</span></div>
+    <div class="alignment-display" style="background:#0f2318; border-left:4px solid var(--green); font-size:1.1rem; letter-spacing:8px;">
+      ${T.split('').map(c => c==='$' ? `<span class="sentinel">$</span>` : c).join('')}
+    </div></div>`;
+
+  // Step 2: unsorted rotations
+  html += `<div class="bwt-section">
+    <div class="bwt-section-title">Paso 2 — Las ${n} rotaciones <span>(sin ordenar)</span></div>
+    <div class="table-wrapper"><table class="rot-table">
+      <thead><tr><th>i</th>${Array.from({length:n},(_,k)=>`<th>${k}</th>`).join('')}</tr></thead>
+      <tbody>
+      ${rotations.map((r,ri) => `<tr>
+        <td class="row-index">${ri}</td>
+        ${r.rot.split('').map((c,ci) => {
+          const cls = ci===n-1 ? 'bwt-last' : '';
+          return `<td class="${cls}">${c==='$'?'<span style="color:#f39c12">$</span>':c}</td>`;
+        }).join('')}
+      </tr>`).join('')}
+      </tbody>
+    </table></div></div>`;
+
+  // Step 3: sorted rotations
+  html += `<div class="bwt-section">
+    <div class="bwt-section-title">Paso 3 — Rotaciones ordenadas → extraer BWT (última col) y SA</div>
+    <div class="table-wrapper"><table class="rot-table">
+      <thead><tr>
+        <th>Fila</th>
+        ${Array.from({length:n},(_,k)=>{
+          if(k===0) return `<th style="color:#f39c12">F</th>`;
+          if(k===n-1) return `<th style="color:var(--green)">L=BWT</th>`;
+          return `<th>${k}</th>`;
+        }).join('')}
+        <th style="color:var(--green)">SA</th>
+      </tr></thead>
+      <tbody>
+      ${sorted.map((r,ri) => {
+        const isOrig = r.origIdx===0;
+        return `<tr class="${isOrig?'original-row':''}">
+          <td class="row-index">${ri}${isOrig?' ★':''}</td>
+          ${r.rot.split('').map((c,ci) => {
+            const cls = ci===n-1?'bwt-last':(ci===0?'bwt-first':'');
+            return `<td class="${cls}">${c==='$'?'<span style="color:#f39c12">$</span>':c}</td>`;
+          }).join('')}
+          <td><span class="sa-badge">${SA[ri]}</span></td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table></div>
+    <div style="margin-top:14px; display:flex; gap:16px; flex-wrap:wrap; font-size:0.85rem; align-items:center;">
+      <div><strong style="color:var(--green)">BWT =</strong>
+        <span style="font-family:monospace; background:#0f2318; color:#fdfaf3; padding:7px 16px; border-radius:6px; font-size:1rem; letter-spacing:5px; font-weight:700; margin-left:8px;">
+          ${bwt.split('').map(c=>c==='$'?`<span class="sentinel">$</span>`:c).join('')}
+        </span>
+      </div>
+      <div><strong style="color:var(--green)">SA =</strong>
+        <span style="font-family:monospace; background:rgba(39,174,96,0.1); padding:7px 16px; border-radius:6px; border:1px solid var(--green); margin-left:8px;">
+          [${SA.join(', ')}]
+        </span>
+      </div>
+    </div></div>`;
+
+  // Step 4: C and Occ tables
+  html += `<div class="bwt-section">
+    <div class="bwt-section-title">Paso 4 — FM-Index: Tabla C y Tabla Occ</div>
+    <div class="bwt-tables-row">
+      <div>
+        <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:2px; color:var(--green); margin-bottom:8px; font-weight:700;">Tabla C</div>
+        <table class="fm-table">
+          <thead><tr><th>c</th><th>C[c]</th><th>conteo en T</th></tr></thead>
+          <tbody>${chars.map(c => `<tr>
+            <td style="font-weight:700">${c==='$'?'<span style="color:#f39c12">$</span>':c}</td>
+            <td style="font-weight:700;color:var(--green)">${C[c]}</td>
+            <td style="opacity:0.6">${T.split('').filter(x=>x===c).length}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+      <div style="overflow-x:auto; flex:1;">
+        <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:2px; color:var(--green); margin-bottom:8px; font-weight:700;">Tabla Occ(c, i)</div>
+        <table class="fm-table">
+          <thead><tr>
+            <th>i</th><th>BWT[i]</th>
+            ${chars.map(c=>`<th>Occ(${c==='$'?'<span style="color:#f39c12">$</span>':c},i)</th>`).join('')}
+          </tr></thead>
+          <tbody>${bwt.split('').map((ch,i) => `
+            <tr>
+              <td>${i}</td>
+              <td style="font-weight:700;color:${ch==='$'?'#f39c12':'var(--green)'}">${ch}</td>
+              ${chars.map(c=>`<td class="${ch===c?'occ-active':''}">${getOcc(c,i)}</td>`).join('')}
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div></div>`;
+
+  // Step 5: Backward search
+  if (pattern) {
+    html += `<div class="bwt-section">
+      <div class="bwt-section-title">Paso 5 — Backward Search: "<span style="color:var(--green);font-family:monospace">${pattern}</span>" <span>(lectura de derecha ← izquierda)</span></div>
+      <div style="font-size:0.78rem; opacity:0.6; margin-bottom:12px;">Fórmula: top = C[c] + Occ(c, top−1) &nbsp;|&nbsp; bot = C[c] + Occ(c, bot) − 1</div>
+      <div class="search-steps">
+        <div class="search-step" style="border-left-color:#888; background:rgba(0,0,0,0.03)">
+          <strong>Inicio:</strong> rango inicial = <span class="step-range">[top=0, bot=${n-1}]</span> (toda la BWT)
+        </div>
+        ${steps.map((st,si) => st.fail
+          ? `<div class="search-step step-fail">
+              <span class="step-char">${st.char}</span>
+              El carácter <strong>"${st.char}"</strong> no existe en el texto →
+              <strong style="color:var(--red)">Patrón no encontrado</strong>
+             </div>`
+          : `<div class="search-step">
+              <span class="step-char">${st.char}</span>
+              Carácter <strong>"${st.char}"</strong> — iteración ${si+1} de ${pattern.length}<br>
+              <span class="step-formula">top = ${st.formulaTop}</span><br>
+              <span class="step-formula">bot = ${st.formulaBot}</span><br>
+              Nuevo rango: <span class="step-range">[top=${st.newTop}, bot=${st.newBot}]</span>
+              ${st.newTop > st.newBot ? ' → <strong style="color:var(--red)">Rango vacío</strong>' : ` → ${st.newBot - st.newTop + 1} fila(s) en SA`}
+             </div>`
+        ).join('')}
+      </div></div>`;
+  }
+
+  // Step 6: Result
+  html += `<div class="bwt-section"><div class="bwt-section-title">Resultado final</div>`;
+  if (!pattern) {
+    html += `<p style="opacity:0.6; font-size:0.85rem;">Ingresa un patrón para buscar.</p>`;
+  } else if (positions.length === 0) {
+    html += `<div class="score-badge" style="border:2px solid var(--red);color:var(--red);background:rgba(192,57,43,0.08)">
+      ✗ &nbsp;"${pattern}" no encontrado en "${rawText}"
+    </div>`;
+  } else {
+    // Build per-occurrence breakdowns: "A[1] N[2] A[3]"
+    const occurrenceBreakdowns = positions.map(p => {
+      const chars = pattern.split('').map((c, k) => `${c}[${p + k}]`).join(' ');
+      return { pos: p, chars };
+    });
+
+    html += `
+      <div class="score-badge bwt-score">
+        ✓ &nbsp;"${pattern}" — <span class="score-val">${positions.length}</span> ocurrencia${positions.length>1?'s':''} encontrada${positions.length>1?'s':''}
+      </div>
+
+      <div style="margin-top:16px; display:flex; flex-direction:column; gap:10px;">
+        ${occurrenceBreakdowns.map(({pos, chars}) => `
+          <div style="display:flex; align-items:center; gap:14px; padding:12px 18px;
+               background:rgba(39,174,96,0.06); border:1px solid rgba(39,174,96,0.3);
+               border-left:4px solid var(--green); border-radius:8px; flex-wrap:wrap;">
+            <span style="font-size:0.7rem; text-transform:uppercase; letter-spacing:2px; 
+                  color:var(--green); font-weight:700; min-width:60px;">pos ${pos}</span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              ${pattern.split('').map((c, k) => `
+                <span style="display:inline-flex; flex-direction:column; align-items:center; gap:2px;">
+                  <span style="background:var(--green); color:white; font-weight:700; font-size:1rem;
+                        padding:4px 10px; border-radius:5px; font-family:monospace;">${c}</span>
+                  <span style="font-size:0.65rem; color:var(--green); font-weight:700; opacity:0.8;">[${pos+k}]</span>
+                </span>`).join('')}
+            </div>
+            <span style="font-size:0.75rem; opacity:0.5; font-family:monospace; margin-left:auto;">${chars}</span>
+          </div>`).join('')}
+      </div>
+
+      <div class="text-highlight-box" style="margin-top:16px;">
+        <div style="font-size:0.6rem; letter-spacing:2px; opacity:0.4; margin-bottom:10px; font-family:monospace;">
+          ${rawText.split('').map((_,i) => String(i).padStart(2)).join(' ')}
+        </div>
+        ${rawText.split('').map((c,i) => {
+          const inMatch = positions.some(p => i >= p && i < p + pattern.length);
+          return inMatch ? `<span class="hl">${c}</span>` : c;
+        }).join('')}<span class="sentinel">$</span>
+      </div>
+
+      <div style="margin-top:10px; font-size:0.78rem; opacity:0.55; font-family:monospace;">
+        Rango BWT: [${top}, ${bot}] → SA[${top}..${bot}] = [${positions.join(', ')}]
+      </div>`;
+  }
+  html += `</div>`;
+
+  document.getElementById('bwt-result').innerHTML = html;
+}
+
 // ───────────────────────────────────────────────
 function runNW() {
   const seq1 = document.getElementById('nw-seq1').value.toUpperCase().trim();
@@ -727,7 +1215,7 @@ function runSW() {
 }
 
 // Auto-run on load with default values
-window.onload = () => { runNW(); runSW(); };
+window.onload = () => { runNW(); runSW(); runBWT(); };
 </script>
 </body>
 </html>
