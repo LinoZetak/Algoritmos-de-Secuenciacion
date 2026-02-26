@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sequence Alignment Algorithms</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f2eb;
+    --paper: #fdfaf3;
+    --ink: #1a1a2e;
+    --red: #c0392b;
+    --red-light: #e74c3c;
+    --blue: #1a4a7a;
+    --blue-light: #2980b9;
+    --green: #27ae60;
+    --grid-line: #c8b89a;
+    --cell-bg: #fefcf7;
+    --header-bg: #f0ead8;
+    --shadow: rgba(0,0,0,0.15);
+    --traceback-nw: rgba(192,57,43,0.18);
+    --traceback-sw: rgba(26,74,122,0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    font-family: 'Source Code Pro', monospace;
+    color: var(--ink);
+    min-height: 100vh;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(200,184,154,0.3) 27px, rgba(200,184,154,0.3) 28px),
+      repeating-linear-gradient(90deg, transparent, transparent 27px, rgba(200,184,154,0.15) 27px, rgba(200,184,154,0.15) 28px);
+  }
+
+  header {
+    background: var(--ink);
+    color: #fdfaf3;
+    padding: 28px 40px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 4px 20px var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 6px;
+    background: linear-gradient(180deg, var(--red), var(--blue));
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2rem;
+    letter-spacing: 0.5px;
+  }
+  header .subtitle {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin-top: 4px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  header .dna-decoration {
+    margin-left: auto;
+    font-size: 1.8rem;
+    opacity: 0.25;
+    letter-spacing: 6px;
+  }
+
+  .tabs {
+    display: flex;
+    padding: 20px 40px 0;
+    gap: 4px;
+  }
+  .tab-btn {
+    padding: 10px 28px;
+    border: 2px solid transparent;
+    border-bottom: none;
+    background: transparent;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .tab-btn.nw {
+    color: var(--red);
+    border-color: var(--grid-line);
+    background: var(--header-bg);
+  }
+  .tab-btn.nw.active {
+    background: var(--paper);
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .tab-btn.sw {
+    color: var(--blue);
+    border-color: var(--grid-line);
+    background: var(--header-bg);
+  }
+  .tab-btn.sw.active {
+    background: var(--paper);
+    border-color: var(--blue);
+    color: var(--blue);
+  }
+
+  .content {
+    background: var(--paper);
+    margin: 0 40px;
+    padding: 30px;
+    border-radius: 0 12px 12px 12px;
+    box-shadow: 0 4px 30px var(--shadow);
+    border: 1px solid var(--grid-line);
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .controls {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+    padding: 20px;
+    background: var(--header-bg);
+    border-radius: 10px;
+    border: 1px solid var(--grid-line);
+  }
+  .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .input-group label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-weight: 600;
+    opacity: 0.7;
+  }
+  .input-group input {
+    padding: 10px 14px;
+    border: 2px solid var(--grid-line);
+    border-radius: 6px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--paper);
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    min-width: 200px;
+    transition: border-color 0.2s;
+  }
+  .input-group input:focus {
+    outline: none;
+  }
+  .input-group.nw-group input:focus { border-color: var(--red); }
+  .input-group.sw-group input:focus { border-color: var(--blue); }
+
+  .params {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .param-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .param-item label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    opacity: 0.6;
+    font-weight: 600;
+  }
+  .param-item input {
+    width: 60px;
+    padding: 8px 10px;
+    border: 2px solid var(--grid-line);
+    border-radius: 6px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.9rem;
+    font-weight: 700;
+    background: var(--paper);
+    text-align: center;
+  }
+
+  .calc-btn {
+    padding: 12px 28px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .calc-btn.nw-btn {
+    background: var(--red);
+    color: white;
+    box-shadow: 0 4px 15px rgba(192,57,43,0.35);
+  }
+  .calc-btn.nw-btn:hover { background: #a93226; transform: translateY(-2px); }
+  .calc-btn.sw-btn {
+    background: var(--blue);
+    color: white;
+    box-shadow: 0 4px 15px rgba(26,74,122,0.35);
+  }
+  .calc-btn.sw-btn:hover { background: #15395f; transform: translateY(-2px); }
+
+  .result-section { margin-top: 20px; }
+
+  .score-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+  }
+  .score-badge.nw-score {
+    background: rgba(192,57,43,0.1);
+    color: var(--red);
+    border: 2px solid var(--red);
+  }
+  .score-badge.sw-score {
+    background: rgba(26,74,122,0.1);
+    color: var(--blue);
+    border: 2px solid var(--blue);
+  }
+  .score-val { font-size: 1.4rem; }
+
+  .alignment-display {
+    background: var(--ink);
+    color: #fdfaf3;
+    padding: 20px 24px;
+    border-radius: 10px;
+    font-size: 1rem;
+    letter-spacing: 5px;
+    margin-bottom: 24px;
+    line-height: 1.9;
+    font-weight: 600;
+  }
+  .alignment-display .match-line { color: #f39c12; }
+  .alignment-display .seq-label {
+    font-size: 0.65rem;
+    opacity: 0.5;
+    letter-spacing: 2px;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .table-wrapper {
+    overflow-x: auto;
+    padding-bottom: 10px;
+  }
+
+  table.dp-table {
+    border-collapse: collapse;
+    font-size: 0.7rem;
+    background: var(--cell-bg);
+    box-shadow: 0 2px 20px var(--shadow);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  table.dp-table th, table.dp-table td {
+    border: 1px solid var(--grid-line);
+    min-width: 90px;
+    width: 90px;
+    height: 80px;
+    vertical-align: middle;
+    text-align: center;
+    position: relative;
+    padding: 4px;
+  }
+
+  table.dp-table th {
+    background: var(--header-bg);
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    color: var(--ink);
+  }
+  table.dp-table th.nw-header { color: var(--red); }
+  table.dp-table th.sw-header { color: var(--blue); }
+
+  .cell-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 1px;
+  }
+
+  .ops-text {
+    font-size: 0.58rem;
+    color: var(--red-light);
+    line-height: 1.4;
+    text-align: left;
+    width: 100%;
+    padding: 0 4px;
+  }
+  .ops-text.sw-ops { color: var(--blue-light); }
+
+  .cell-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--red);
+    line-height: 1;
+    margin-top: 2px;
+  }
+  .cell-value.sw-val { color: var(--blue); }
+
+  .cell-arrow {
+    font-size: 0.75rem;
+    color: var(--red);
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .cell-arrow.sw-arr { color: var(--blue); }
+
+  td.traceback-nw {
+    background: var(--traceback-nw);
+    outline: 2px solid var(--red);
+    outline-offset: -2px;
+    z-index: 2;
+  }
+  td.traceback-sw {
+    background: var(--traceback-sw);
+    outline: 2px solid var(--blue);
+    outline-offset: -2px;
+    z-index: 2;
+  }
+  td.max-cell-sw {
+    background: rgba(26,74,122,0.25);
+    outline: 3px solid var(--blue);
+    outline-offset: -3px;
+  }
+
+  .legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+    font-size: 0.7rem;
+    opacity: 0.7;
+    letter-spacing: 1px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-box {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    border: 2px solid;
+  }
+
+  @media (max-width: 700px) {
+    .content { margin: 0 10px; padding: 16px; }
+    .tabs { padding: 16px 10px 0; }
+    .controls { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Sequence Alignment</h1>
+    <div class="subtitle">Needleman-Wunsch · Smith-Waterman · Dynamic Programming</div>
+  </div>
+  <div class="dna-decoration">A T G C A T G C</div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn nw active" onclick="switchTab('nw')">Needleman-Wunsch (Global)</button>
+  <button class="tab-btn sw" onclick="switchTab('sw')">Smith-Waterman (Local)</button>
+</div>
+
+<div class="content">
+  <!-- NEEDLEMAN-WUNSCH -->
+  <div class="tab-content active" id="tab-nw">
+    <div class="controls">
+      <div class="input-group nw-group">
+        <label>Secuencia 1</label>
+        <input type="text" id="nw-seq1" value="ACTAGA" placeholder="ej. ACTAGA">
+      </div>
+      <div class="input-group nw-group">
+        <label>Secuencia 2</label>
+        <input type="text" id="nw-seq2" value="ACTAGA" placeholder="ej. ACTAGА">
+      </div>
+      <div class="params">
+        <div class="param-item">
+          <label>Match</label>
+          <input type="number" id="nw-match" value="1">
+        </div>
+        <div class="param-item">
+          <label>Mismatch</label>
+          <input type="number" id="nw-mismatch" value="-1">
+        </div>
+        <div class="param-item">
+          <label>Gap</label>
+          <input type="number" id="nw-gap" value="-1">
+        </div>
+      </div>
+      <button class="calc-btn nw-btn" onclick="runNW()">▶ Calcular</button>
+    </div>
+    <div class="result-section" id="nw-result"></div>
+  </div>
+
+  <!-- SMITH-WATERMAN -->
+  <div class="tab-content" id="tab-sw">
+    <div class="controls">
+      <div class="input-group sw-group">
+        <label>Secuencia 1</label>
+        <input type="text" id="sw-seq1" value="TGTTACGG" placeholder="ej. TGTTACGG">
+      </div>
+      <div class="input-group sw-group">
+        <label>Secuencia 2</label>
+        <input type="text" id="sw-seq2" value="GGTTGACTA" placeholder="ej. GGTTGACTA">
+      </div>
+      <div class="params">
+        <div class="param-item">
+          <label>Match</label>
+          <input type="number" id="sw-match" value="1">
+        </div>
+        <div class="param-item">
+          <label>Mismatch</label>
+          <input type="number" id="sw-mismatch" value="-1">
+        </div>
+        <div class="param-item">
+          <label>Gap</label>
+          <input type="number" id="sw-gap" value="-1">
+        </div>
+      </div>
+      <button class="calc-btn sw-btn" onclick="runSW()">▶ Calcular</button>
+    </div>
+    <div class="result-section" id="sw-result"></div>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('.tab-btn.' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ───────────────────────────────────────────────
+// NEEDLEMAN-WUNSCH
+// ───────────────────────────────────────────────
+function runNW() {
+  const seq1 = document.getElementById('nw-seq1').value.toUpperCase().trim();
+  const seq2 = document.getElementById('nw-seq2').value.toUpperCase().trim();
+  const match = parseInt(document.getElementById('nw-match').value);
+  const mismatch = parseInt(document.getElementById('nw-mismatch').value);
+  const gap = parseInt(document.getElementById('nw-gap').value);
+
+  if (!seq1 || !seq2) return;
+
+  const m = seq1.length, n = seq2.length;
+  // dp[i][j] = score, dir[i][j] = arrows
+  const dp = [], dir = [];
+  for (let i = 0; i <= m; i++) {
+    dp.push(new Array(n + 1).fill(0));
+    dir.push(new Array(n + 1).fill(''));
+  }
+
+  // Init
+  for (let i = 0; i <= m; i++) { dp[i][0] = i * gap; dir[i][0] = i > 0 ? '↑' : ''; }
+  for (let j = 0; j <= n; j++) { dp[0][j] = j * gap; dir[0][j] = j > 0 ? '←' : ''; }
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const diag = dp[i-1][j-1] + (seq1[i-1] === seq2[j-1] ? match : mismatch);
+      const up   = dp[i-1][j] + gap;
+      const left = dp[i][j-1] + gap;
+      const best = Math.max(diag, up, left);
+      dp[i][j] = best;
+      let arrows = '';
+      if (diag === best) arrows += '↖';
+      if (up   === best) arrows += '↑';
+      if (left === best) arrows += '←';
+      dir[i][j] = arrows;
+    }
+  }
+
+  // Traceback
+  const tb = new Set();
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    tb.add(`${i},${j}`);
+    const d = dir[i][j];
+    if (d.includes('↖')) { i--; j--; }
+    else if (d.includes('↑')) { i--; }
+    else { j--; }
+  }
+  tb.add('0,0');
+
+  // Build aligned sequences
+  let a1 = '', a2 = '';
+  i = m; j = n;
+  while (i > 0 || j > 0) {
+    const d = dir[i][j];
+    if (d.includes('↖')) { a1 = seq1[i-1] + a1; a2 = seq2[j-1] + a2; i--; j--; }
+    else if (d.includes('↑')) { a1 = seq1[i-1] + a1; a2 = '-' + a2; i--; }
+    else { a1 = '-' + a1; a2 = seq2[j-1] + a2; j--; }
+  }
+
+  // Render
+  let matchLine = '';
+  for (let k = 0; k < a1.length; k++) {
+    matchLine += (a1[k] === a2[k] && a1[k] !== '-') ? '|' : ' ';
+  }
+
+  let html = `
+    <div class="score-badge nw-score">Score final: <span class="score-val">${dp[m][n]}</span></div>
+    <div class="alignment-display">
+      <span class="seq-label">SEQ 1</span>${a1.split('').join(' ')}<br>
+      <span class="seq-label match-line">      </span><span class="match-line">${matchLine.split('').join(' ')}</span><br>
+      <span class="seq-label">SEQ 2</span>${a2.split('').join(' ')}
+    </div>
+    <div class="table-wrapper">
+    <table class="dp-table">
+      <thead>
+        <tr>
+          <th></th><th></th>
+          ${seq2.split('').map(c => `<th class="nw-header">${c}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+  for (let ii = 0; ii <= m; ii++) {
+    html += '<tr>';
+    // Row header
+    if (ii === 0) html += '<th></th>';
+    else html += `<th class="nw-header">${seq1[ii-1]}</th>`;
+
+    for (let jj = 0; jj <= n; jj++) {
+      const inTB = tb.has(`${ii},${jj}`);
+      const cls = inTB ? 'traceback-nw' : '';
+
+      let ops = '';
+      if (ii > 0 && jj > 0) {
+        const diagScore = dp[ii-1][jj-1];
+        const upScore   = dp[ii-1][jj];
+        const leftScore = dp[ii][jj-1];
+        const sm = seq1[ii-1] === seq2[jj-1] ? match : mismatch;
+        ops = `
+          <div>↖ ${diagScore}${sm >= 0 ? '+' : ''}${sm}=${diagScore + sm}</div>
+          <div>↑ ${upScore}${gap >= 0 ? '+' : ''}${gap}=${upScore + gap}</div>
+          <div>← ${leftScore}${gap >= 0 ? '+' : ''}${gap}=${leftScore + gap}</div>`;
+      } else if (ii === 0 && jj > 0) {
+        ops = `<div>← ${dp[0][jj-1]}${gap >= 0 ? '+' : ''}${gap}=${dp[0][jj]}</div>`;
+      } else if (jj === 0 && ii > 0) {
+        ops = `<div>↑ ${dp[ii-1][0]}${gap >= 0 ? '+' : ''}${gap}=${dp[ii][0]}</div>`;
+      }
+
+      const arrow = dir[ii][jj];
+      html += `
+        <td class="${cls}">
+          <div class="cell-inner">
+            <div class="ops-text">${ops}</div>
+            <div class="cell-value">${dp[ii][jj]}</div>
+            ${arrow ? `<div class="cell-arrow">${arrow}</div>` : ''}
+          </div>
+        </td>`;
+    }
+    html += '</tr>';
+  }
+
+  html += `</tbody></table></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box" style="background:rgba(192,57,43,0.18);border-color:var(--red)"></div> Camino del traceback</div>
+      <div class="legend-item">↖ diagonal &nbsp; ↑ arriba &nbsp; ← izquierda</div>
+    </div>`;
+
+  document.getElementById('nw-result').innerHTML = html;
+}
+
+// ───────────────────────────────────────────────
+// SMITH-WATERMAN
+// ───────────────────────────────────────────────
+function runSW() {
+  const seq1 = document.getElementById('sw-seq1').value.toUpperCase().trim();
+  const seq2 = document.getElementById('sw-seq2').value.toUpperCase().trim();
+  const match = parseInt(document.getElementById('sw-match').value);
+  const mismatch = parseInt(document.getElementById('sw-mismatch').value);
+  const gap = parseInt(document.getElementById('sw-gap').value);
+
+  if (!seq1 || !seq2) return;
+
+  const m = seq1.length, n = seq2.length;
+  const dp = [], dir = [];
+  for (let i = 0; i <= m; i++) {
+    dp.push(new Array(n + 1).fill(0));
+    dir.push(new Array(n + 1).fill(''));
+  }
+
+  let maxVal = 0, maxI = 0, maxJ = 0;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const diag = dp[i-1][j-1] + (seq1[i-1] === seq2[j-1] ? match : mismatch);
+      const up   = dp[i-1][j] + gap;
+      const left = dp[i][j-1] + gap;
+      const best = Math.max(0, diag, up, left);
+      dp[i][j] = best;
+      let arrows = '';
+      if (best === 0) arrows = '';
+      else {
+        if (diag === best) arrows += '↖';
+        if (up   === best) arrows += '↑';
+        if (left === best) arrows += '←';
+      }
+      dir[i][j] = arrows;
+      if (best > maxVal) { maxVal = best; maxI = i; maxJ = j; }
+    }
+  }
+
+  // Traceback from max cell
+  const tb = new Set();
+  let i = maxI, j = maxJ;
+  while (dp[i][j] > 0) {
+    tb.add(`${i},${j}`);
+    const d = dir[i][j];
+    if (d.includes('↖')) { i--; j--; }
+    else if (d.includes('↑')) { i--; }
+    else { j--; }
+  }
+
+  // Build aligned subsequences
+  let a1 = '', a2 = '';
+  i = maxI; j = maxJ;
+  while (dp[i][j] > 0) {
+    const d = dir[i][j];
+    if (d.includes('↖')) { a1 = seq1[i-1] + a1; a2 = seq2[j-1] + a2; i--; j--; }
+    else if (d.includes('↑')) { a1 = seq1[i-1] + a1; a2 = '-' + a2; i--; }
+    else { a1 = '-' + a1; a2 = seq2[j-1] + a2; j--; }
+  }
+
+  let matchLine = '';
+  for (let k = 0; k < a1.length; k++) {
+    matchLine += (a1[k] === a2[k] && a1[k] !== '-') ? '|' : ' ';
+  }
+
+  let html = `
+    <div class="score-badge sw-score">Score máximo: <span class="score-val">${maxVal}</span></div>
+    <div class="alignment-display">
+      <span class="seq-label">SEQ 1 (local)</span>${a1.split('').join(' ')}<br>
+      <span class="seq-label match-line">             </span><span class="match-line">${matchLine.split('').join(' ')}</span><br>
+      <span class="seq-label">SEQ 2 (local)</span>${a2.split('').join(' ')}
+    </div>
+    <div class="table-wrapper">
+    <table class="dp-table">
+      <thead>
+        <tr>
+          <th></th><th></th>
+          ${seq2.split('').map(c => `<th class="sw-header">${c}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+  for (let ii = 0; ii <= m; ii++) {
+    html += '<tr>';
+    if (ii === 0) html += '<th></th>';
+    else html += `<th class="sw-header">${seq1[ii-1]}</th>`;
+
+    for (let jj = 0; jj <= n; jj++) {
+      const inTB = tb.has(`${ii},${jj}`);
+      const isMax = (ii === maxI && jj === maxJ);
+      const cls = isMax ? 'traceback-sw max-cell-sw' : (inTB ? 'traceback-sw' : '');
+
+      let ops = '';
+      if (ii > 0 && jj > 0) {
+        const diagScore = dp[ii-1][jj-1];
+        const upScore   = dp[ii-1][jj];
+        const leftScore = dp[ii][jj-1];
+        const sm = seq1[ii-1] === seq2[jj-1] ? match : mismatch;
+        ops = `
+          <div>↖ ${diagScore}${sm >= 0 ? '+' : ''}${sm}=${diagScore + sm}</div>
+          <div>↑ ${upScore}${gap >= 0 ? '+' : ''}${gap}=${upScore + gap}</div>
+          <div>← ${leftScore}${gap >= 0 ? '+' : ''}${gap}=${leftScore + gap}</div>
+          <div style="opacity:0.5">max(0,...)</div>`;
+      }
+
+      const arrow = dir[ii][jj];
+      html += `
+        <td class="${cls}">
+          <div class="cell-inner">
+            <div class="ops-text sw-ops">${ops}</div>
+            <div class="cell-value sw-val">${dp[ii][jj]}</div>
+            ${arrow ? `<div class="cell-arrow sw-arr">${arrow}</div>` : ''}
+          </div>
+        </td>`;
+    }
+    html += '</tr>';
+  }
+
+  html += `</tbody></table></div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-box" style="background:rgba(26,74,122,0.25);border-color:var(--blue)"></div> Camino del traceback</div>
+      <div class="legend-item"><div class="legend-box" style="background:rgba(26,74,122,0.25);border-color:var(--blue);border-width:3px"></div> Celda máxima (inicio traceback)</div>
+      <div class="legend-item">↖ diagonal &nbsp; ↑ arriba &nbsp; ← izquierda</div>
+    </div>`;
+
+  document.getElementById('sw-result').innerHTML = html;
+}
+
+// Auto-run on load with default values
+window.onload = () => { runNW(); runSW(); };
+</script>
+</body>
+</html>
